@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- API Key Modal -->
+    <div id="apiModal" class="modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-key"></i> API Key Einrichtung</h2>
+            <p>Bitte gib deinen kostenlosen Finnhub API Key ein:</p>
+            <input type="text" id="apiKeyInput" placeholder="Dein API Key...">
+            <button id="saveApiKey" class="btn-primary">Key Speichern</button>
+            <a href="https://finnhub.io/register" target="_blank" class="help-link">
+                <i class="fas fa-external-link-alt"></i> Hier kostenlosen Key erstellen
+            </a>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    Trading Dashboard
+                </h1>
+                <span class="market-status" id="marketStatus">
+                    <span class="status-dot"></span>
+                    Prüfung...
+                </span>
+            </div>
+            <div class="header-right">
+                <button id="refreshBtn" class="btn-icon" title="Aktualisieren">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button id="settingsBtn" class="btn-icon" title="Einstellungen">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Sidebar - Watchlist -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2><i class="fas fa-star"></i> Watchlist</h2>
+                    <button id="addStockBtn" class="btn-small btn-primary">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="watchlist" class="watchlist">
+                    <!-- Watchlist items werden hier dynamisch eingefügt -->
+                </div>
+            </aside>
+
+            <!-- Center - Charts & Details -->
+            <main class="content-area">
+                <!-- Stock Info Header -->
+                <div class="stock-header" id="stockHeader">
+                    <div class="stock-info">
+                        <h2 id="selectedStock">AAPL</h2>
+                        <span id="selectedStockName" class="stock-name">Apple Inc.</span>
+                    </div>
+                    <div class="price-info">
+                        <span id="currentPrice" class="price">--</span>
+                        <span id="priceChange" class="change">--</span>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="chart-container">
+                    <div class="chart-controls">
+                        <button class="timeframe-btn active" data-range="1D">1T</button>
+                        <button class="timeframe-btn" data-range="5D">5T</button>
+                        <button class="timeframe-btn" data-range="1M">1M</button>
+                        <button class="timeframe-btn" data-range="3M">3M</button>
+                        <button class="timeframe-btn" data-range="6M">6M</button>
+                        <button class="timeframe-btn" data-range="1Y">1J</button>
+                        <button class="timeframe-btn" data-range="5Y">5J</button>
+                    </div>
+                    <canvas id="priceChart"></canvas>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-label">Eröffnung</div>
+                        <div class="stat-value" id="openPrice">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Hoch (Tag)</div>
+                        <div class="stat-value" id="dayHigh">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tief (Tag)</div>
+                        <div class="stat-value" id="dayLow">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Volumen</div>
+                        <div class="stat-value" id="volume">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Marktkapitalisierung</div>
+                        <div class="stat-value" id="marketCap">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">52-Woch Hoch</div>
+                        <div class="stat-value" id="fiftyTwoWeekHigh">--</div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar - News -->
+            <aside class="news-sidebar">
+                <div class="sidebar-header">
+                    <h2><i class="fas fa-newspaper"></i> News & Sentiment</h2>
+                </div>
+                <div id="newsContainer" class="news-container">
+                    <!-- News items werden hier dynamisch eingefügt -->
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Add Stock Modal -->
+    <div id="addStockModal" class="modal">
+        <div class="modal-content">
+            <h2>Aktie hinzufügen</h2>
+            <input type="text" id="symbolInput" placeholder="Symbol (z.B. AAPL, TSLA, MSFT)..." class="input-field">
+            <button id="addStockSubmit" class="btn-primary">Hinzufügen</button>
+            <button id="closeAddModal" class="btn-secondary">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h2>Einstellungen</h2>
+            <div class="setting-item">
+                <label>API Key:</label>
+                <input type="text" id="settingsApiKey" class="input-field">
+            </div>
+            <button id="saveSettings" class="btn-primary">Speichern</button>
+            <button id="closeSettings" class="btn-secondary">Schließen</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
