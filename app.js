@@ -2,8 +2,6 @@
 // Trading Dashboard Pro - Main Application
 // ============================================
 
-// CORS-Proxy um Browser-Blockierung zu vermeiden
-const CORS_PROXY = 'https://corsproxy.io/?';
 const API_BASE = 'https://finnhub.io/api/v1';
 
 // Default watchlist
@@ -69,7 +67,7 @@ function loadSettings() {
 }
 
 // ============================================
-// API CALLS (with CORS Proxy)
+// API CALLS
 // ============================================
 
 async function apiCall(endpoint, params = {}) {
@@ -79,40 +77,63 @@ async function apiCall(endpoint, params = {}) {
     }
     
     // Build query string
-    const queryString = `token=${encodeURIComponent(state.apiKey)}`;
+    const queryParams = [`token=${encodeURIComponent(state.apiKey)}`];
     Object.keys(params).forEach(key => {
-        queryString += `&${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`;
+        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`);
     });
     
-    // Use CORS proxy
-    const url = `${CORS_PROXY}${encodeURIComponent(`${API_BASE}${endpoint}?${queryString}`)}`;
+    const queryString = queryParams.join('&');
     
-    try {
-        console.log('Fetching:', url);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API Error:', response.status, errorText);
+    // Use multiple CORS proxies as fallback
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(`${API_BASE}${endpoint}?${queryString}`)}`,
+        `https://corsproxy.io/?${encodeURIComponent(`${API_BASE}${endpoint}?${queryString}`)}`
+    ];
+    
+    for (const proxyUrl of proxies) {
+        try {
+            console.log('Trying proxy:', proxyUrl);
+            const response = await fetch(proxyUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            console.log('Response status:', response.status);
             
             if (response.status === 401) {
                 showNotification('❌ API Key ungültig! Prüfe deinen Key auf finnhub.io', 'error');
-            } else if (response.status === 429) {
-                showNotification('⚠️ Zu viele Anfragen - warte einen Moment', 'error');
-            } else {
-                showNotification(`❌ API Error: ${response.status}`, 'error');
+                return null;
             }
-            return null;
+            
+            if (response.status === 429) {
+                showNotification('⚠️ Zu viele Anfragen - warte einen Moment', 'error');
+                return null;
+            }
+            
+            if (!response.ok) {
+                console.error(`HTTP Error: ${response.status}`);
+                continue; // Try next proxy
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.error('Response is not JSON');
+                continue; // Try next proxy
+            }
+            
+            const data = await response.json();
+            console.log('API Response:', data);
+            return data;
+        } catch (error) {
+            console.error(`Proxy failed: ${error.message}`);
+            continue; // Try next proxy
         }
-        
-        const data = await response.json();
-        console.log('API Response:', data);
-        return data;
-    } catch (error) {
-        console.error('Fetch Error:', error);
-        showNotification(`❌ Netzwerkfehler: ${error.message}`, 'error');
-        return null;
     }
+    
+    showNotification('❌ Alle Proxies fehlgeschlagen - API Key prüfen?', 'error');
+    return null;
 }
 
 // ============================================
