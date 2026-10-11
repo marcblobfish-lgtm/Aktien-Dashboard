@@ -37,12 +37,16 @@ let chart = null;
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (!state.apiKey) {
-        document.getElementById('apiModal').classList.add('active');
-        return;
-    }
+    // WICHTIG: Event Listener IMMER registrieren - sonst funktionieren Buttons nie!
+    setupEventListeners();
     
-    initApp();
+    if (state.apiKey) {
+        // Key existiert → App normal starten
+        initApp();
+    } else {
+        // Kein Key → Modal anzeigen, App startet erst nach Key-Eingabe
+        document.getElementById('apiModal').classList.add('active');
+    }
 });
 
 async function initApp() {
@@ -50,7 +54,6 @@ async function initApp() {
     updateMarketStatus();
     renderWatchlist();
     selectStock(state.selectedStock);
-    setupEventListeners();
     
     // Refresh data every 30 seconds
     setInterval(refreshPrices, 30000);
