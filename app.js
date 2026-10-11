@@ -2,6 +2,8 @@
 // Trading Dashboard Pro - Main Application
 // ============================================
 
+// CORS-Proxy um Browser-Blockierung zu vermeiden
+const CORS_PROXY = 'https://corsproxy.io/?';
 const API_BASE = 'https://finnhub.io/api/v1';
 
 // Default watchlist
@@ -67,7 +69,7 @@ function loadSettings() {
 }
 
 // ============================================
-// API CALLS
+// API CALLS (with CORS Proxy)
 // ============================================
 
 async function apiCall(endpoint, params = {}) {
@@ -76,20 +78,39 @@ async function apiCall(endpoint, params = {}) {
         return null;
     }
     
-    const url = new URL(`${API_BASE}${endpoint}`);
-    url.searchParams.set('token', state.apiKey);
-    
+    // Build query string
+    const queryString = `token=${encodeURIComponent(state.apiKey)}`;
     Object.keys(params).forEach(key => {
-        url.searchParams.set(key, params[key]);
+        queryString += `&${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`;
     });
     
+    // Use CORS proxy
+    const url = `${CORS_PROXY}${encodeURIComponent(`${API_BASE}${endpoint}?${queryString}`)}`;
+    
     try {
-        const response = await fetch(url.toString());
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        return await response.json();
+        console.log('Fetching:', url);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error:', response.status, errorText);
+            
+            if (response.status === 401) {
+                showNotification('❌ API Key ungültig! Prüfe deinen Key auf finnhub.io', 'error');
+            } else if (response.status === 429) {
+                showNotification('⚠️ Zu viele Anfragen - warte einen Moment', 'error');
+            } else {
+                showNotification(`❌ API Error: ${response.status}`, 'error');
+            }
+            return null;
+        }
+        
+        const data = await response.json();
+        console.log('API Response:', data);
+        return data;
     } catch (error) {
-        console.error('API Error:', error);
-        showNotification('Fehler beim Laden der Daten', 'error');
+        console.error('Fetch Error:', error);
+        showNotification(`❌ Netzwerkfehler: ${error.message}`, 'error');
         return null;
     }
 }
@@ -608,14 +629,39 @@ async function shareNews(news) {
 
 function setupEventListeners() {
     // API Key modal
-    document.getElementById('saveApiKey').addEventListener('click', () => {
-        const key = document.getElementById('apiKeyInput').value.trim();
-        if (key) {
-            state.apiKey = key;
-            localStorage.setItem('finnhub_api_key', key);
+    document.getElementById('saveApiKey').addEventListener('click', async () => {
+        const keyInput = document.getElementById('apiKeyInput');
+        const key = keyInput.value.trim();
+        
+        if (!key) {
+            showNotification('⚠️ Bitte gib einen API Key ein!', 'error');
+            return;
+        }
+        
+        // Test the API key first
+        keyInput.disabled = true;
+        const testBtn = document.getElementById('saveApiKey');
+        const originalText = testBtn.textContent;
+        testBtn.textContent = '⏳ Teste...';
+        
+        state.apiKey = key;
+        localStorage.setItem('finnhub_api_key', key);
+        
+        // Test with a simple API call
+        const testData = await apiCall('/health');
+        
+        if (testData) {
             document.getElementById('apiModal').classList.remove('active');
             initApp();
+            showNotification('✅ API Key gültig - Dashboard lädt!', 'success');
+        } else {
+            showNotification('❌ API Key ungültig! Prüfe deinen Key auf finnhub.io', 'error');
+            state.apiKey = '';
+            localStorage.removeItem('finnhub_api_key');
         }
+        
+        keyInput.disabled = false;
+        testBtn.textContent = originalText;
     });
     
     // Add stock button
@@ -768,5 +814,5 @@ function showNotification(message, type = 'success') {
     
     setTimeout(() => {
         notification.remove();
-    }, 3000);
+    }, 5000);
 }
